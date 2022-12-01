@@ -35,13 +35,13 @@ type
       uintVal: cuint
       choices: seq[cstring]
 
-  Section = object 
+  Section = ref object 
     name: cstring
     separatedAbove: cushort
     separatedBelow: cushort
     entities: seq[Entity]
 
-  Settings = object
+  Settings = ref object
     name: cstring
     sections: seq[Section]
     path: cstring
@@ -68,9 +68,13 @@ type
 
 
 func serialize(settings: Settings): cstring = "" # TODO: serialize into JSON
-func deserialize(settingsJson: cstring): Settings = Settings(name="test", sections: @[], path: "/config/test_settings.json") # TODO: build Settings from JSON
+func deserialize(settings: Settings, settingsJson: cstring): void = 
+  settings.name="test"
+  settings.sections = @[]
+  settings.path = "/config/test_settings.json"
+  # TODO: build Settings from JSON
 
-proc loadSettings(path): SettingsResult = SettingsResult(kind: rkError, error: "Not Implemented")
+proc loadSettings(path: cstring): SettingsResult = SettingsResult(kind: rkError, error: "Not Implemented")
 
 proc set*[T](
   settings: Settings,
@@ -79,11 +83,18 @@ proc set*[T](
 ): EntityResult {.exportc.} =
   ## Sets the field on the settings object (in-place) and saves settings to drive,
   ## gets the resulting value back
-  Result(kind: rkError, error: "Not implemented yet!")
+  EntityResult(kind: rkError, error: "Not implemented yet!")
 
 proc get*[T](
   settings: Settings,
   sectionName, entity: cstring
 ): EntityResult {.exportc.} =
   ## Gets the value from settings object
-  Result(kind: rkError, error: "Not implemented yet!")
+  EntityResult(kind: rkError, error: "Not implemented yet!")
+
+if isMainModule:
+  var s = Settings()
+  
+  deserialize(s, "")
+
+  echo s.name
