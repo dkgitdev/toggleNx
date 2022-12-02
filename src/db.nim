@@ -144,51 +144,51 @@ when isMainModule:
     f.close()
     dbPath
 
-  test "test load basic settings from file":
-    let db_json = %*{
-        "name": "Test",
-        "sections": []
-    }
+  suite "db tests":
+    test "test load basic settings from file":
+      let db_json = %*{
+          "name": "Test",
+          "sections": []
+      }
+      let dbPath = initDb(db_json)
 
-    let dbPath = initDb(db_json)
+      var s = loadSettings(dbPath)
+      case s.kind
+      of rkError:
+        raise newException(Exception, s.error)
+      of rkSuccess:
+        check(s.settings.name == "Test")
 
-    var s = loadSettings(dbPath)
-    case s.kind
-    of rkError:
-      raise newException(Exception, s.error)
-    of rkSuccess:
-      doAssert s.settings.name == "Test"
+    test "test load settings with one enitity from file":
+      let db_json = %*{
+          "name": "Test",
+          "sections": [
+              {
+                  "name": "Test Section",
+                  "separatedAbove": 0,
+                  "separatedBelow": 0,
+                  "entities": [
+                      {
+                          "name": "Enable NiceSetting",
+                          "helptext": "Enable this to configure app perfectly :)",
+                          "separatedAbove": 0,
+                          "separatedBelow": 0,
+                          "kind": "dkSwitch",
+                          "boolVal": 1
+                      }
+                  ]
+              }
+          ]
+      }
+      let dbPath = db_json.initDb()
+      var s = loadSettings(dbPath)
+      case s.kind
+      of rkError:
+        raise newException(Exception, s.error)
+      of rkSuccess:
+        check(s.settings.name == "Test")
 
-  test "test load settings with one enitity from file":
-    let db_json = %*{
-        "name": "Test",
-        "sections": [
-            {
-                "name": "Test Section",
-                "separatedAbove": 0,
-                "separatedBelow": 0,
-                "entities": [
-                    {
-                        "name": "Enable NiceSetting",
-                        "helptext": "Enable this to configure app perfectly :)",
-                        "separatedAbove": 0,
-                        "separatedBelow": 0,
-                        "kind": "dkSwitch",
-                        "boolVal": 1
-                    }
-                ]
-            }
-        ]
-    }
-    let dbPath = db_json.initDb()
-    var s = loadSettings(dbPath)
-    case s.kind
-    of rkError:
-      raise newException(Exception, s.error)
-    of rkSuccess:
-      doAssert s.settings.name == "Test"
+        let entityResult = s.settings.get("Enable NiceSetting")
+        check(entityResult.kind == rkSuccess)
 
-      let entityResult = s.settings.get("Enable NiceSetting")
-      doAssert entityResult.kind == rkSuccess
-
-      doAssert entityResult.entity.kind == dkSwitch
+        check(entityResult.entity.kind == dkSwitch)
