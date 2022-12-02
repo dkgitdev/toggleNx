@@ -1,84 +1,121 @@
-import std/strformat
+import std/streams
 import std/json
+import std/tables
 
 type
-  ResultKind = enum
+  ResultKind* = enum
     rkSuccess
     rkError
-  EntityKind = enum
+  EntityKind* = enum
     dkChar,
     dkSwitch,
     dkSlider,
     dkChoice
 
-  Entity = ref EntityObj
+  Entity* = ref EntityObj
   EntityObj = object
-    name: cstring
-    helptext: cstring
-    separatedAbove: cushort
-    separatedBelow: cushort
+    name*: string
+    helptext*: string
+    separatedAbove*: cushort
+    separatedBelow*: cushort
 
-    case kind: EntityKind
+    case kind*: EntityKind
 
     of dkChar:
-      charVal: cstring
-      minLength, maxLength: cushort
+      charVal*: string
+      minLength*, maxLength*: cushort
 
     of dkSwitch:
-      boolVal: cushort
+      boolVal*: cushort
 
     of dkSlider:
-      intVal: cushort
-      minValue, maxValue: cushort
+      intVal*: cushort
+      minValue*, maxValue*: cushort
 
     of dkChoice:
-      uintVal: cuint
-      choices: seq[cstring]
+      uintVal*: cuint
+      choices*: seq[string]
 
-  Section = ref object 
-    name: cstring
+  Section* = ref object 
+    name: string
     separatedAbove: cushort
     separatedBelow: cushort
     entities: seq[Entity]
 
-  Settings = ref object
-    name: cstring
+  Settings* = ref object
+    name*: string
     sections: seq[Section]
-    path: cstring
+    path: string
+    entities: Table[string, Entity]
 
-  SettingsResult = ref SettingsResultObj
+  SettingsResult* = ref SettingsResultObj
   SettingsResultObj = object
-    case kind: ResultKind
+    case kind*: ResultKind
 
     of rkSuccess:
-      settings: Settings
+      settings*: Settings
 
     of rkError:
-      error: cstring
+      error*: string
 
-  EntityResult = ref EntityResultObj
+  EntityResult* = ref EntityResultObj
   EntityResultObj = object
-    case kind: ResultKind
+    case kind*: ResultKind
 
     of rkSuccess:
-      entity: Entity
+      entity*: Entity
 
     of rkError:
-      error: cstring
+      error*: string
 
+func loadFromJson(jsonData: JsonNode): Settings = 
+  ## Deserialize JSON into Settings
 
-func serialize(settings: Settings): cstring = "" # TODO: serialize into JSON
-func deserialize(settings: Settings, settingsJson: cstring): void = 
-  settings.name="test"
-  settings.sections = @[]
-  settings.path = "/config/test_settings.json"
-  # TODO: build Settings from JSON
+  let settingsName = jsonData["name"].getStr
 
-proc loadSettings(path: cstring): SettingsResult = SettingsResult(kind: rkError, error: "Not Implemented")
+  var sections: seq[Section] = @[]
+  var entities = Table[string, Entity]()
+
+  for sectionData in jsonData["sections"]:
+    var sEntities: seq[Entity] = @[]
+    
+    for entityData in sectionData["entities"]:
+      var entity = to(entityData, Entity)
+      
+      entities[entity.name] = entity
+      sEntities.add(entity)
+    
+    var section = Section(name: sectionData["name"].getStr, entities: sEntities)
+    sections.add(section)
+
+  Settings(name: settingsName, sections: sections)
+
+proc loadSettings*(path: string): SettingsResult {.raises:[].} = 
+  var error: string = ""
+  try:
+    let f = openFileStream(path)
+    defer: f.close()
+    let jData = parseJson(f)
+    result = SettingsResult(kind: rkSuccess, settings: loadFromJson(jData))
+
+  except JsonParsingError as e:
+    error = """Couldn't parse json """" & path & """": """" & e.msg & """"."""
+  
+  except ValueError as e:
+    error = """Couldn't parse json """" & path & """": """" & e.msg & """"."""
+  
+  except KeyError as e:
+    error = """Couldn't parse json """" & path & """": """" & e.msg & """"."""
+  
+  except Exception as e:
+    error = """Couldn't open file """" & path & """": """" & e.msg & """"."""
+
+  if error != "":
+    result = SettingsResult(kind: rkError, error: error)
 
 proc set*[T](
   settings: Settings,
-  sectionName, entity: cstring,
+  sectionName, entity: string,
   value: T
 ): EntityResult {.exportc.} =
   ## Sets the field on the settings object (in-place) and saves settings to drive,
@@ -87,14 +124,10 @@ proc set*[T](
 
 proc get*[T](
   settings: Settings,
-  sectionName, entity: cstring
+  sectionName, entity: string
 ): EntityResult {.exportc.} =
   ## Gets the value from settings object
   EntityResult(kind: rkError, error: "Not implemented yet!")
 
-if isMainModule:
-  var s = Settings()
+when isMainModule:
   
-  deserialize(s, "")
-
-  echo s.name

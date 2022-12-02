@@ -2,3 +2,4 @@ build/
 nimcache/
 nimblecache/
 htmldocs/
+bin/
