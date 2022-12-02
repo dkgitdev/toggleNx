@@ -10,14 +10,5 @@
             "args": [],
             "cwd": "${workspaceFolder}",
         }
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "nim: debug current test",
-            "preLaunchTask": "nim: build current test (for debugging)",
-            "program": "${workspaceFolder}/bin/${fileBasenameNoExtension}",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-        }
     ]
 }
