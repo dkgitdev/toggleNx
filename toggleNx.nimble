@@ -11,3 +11,6 @@ srcDir        = "src"
 
 requires "nim >= 1.6.6"
 requires "switch_build >= 0.1.4"
+
+task test, "Runs the test suite":
+  exec "nim c -r src/db.nim"

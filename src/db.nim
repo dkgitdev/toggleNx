@@ -88,7 +88,7 @@ func loadFromJson(jsonData: JsonNode): Settings =
     var section = Section(name: sectionData["name"].getStr, entities: sEntities)
     sections.add(section)
 
-  Settings(name: settingsName, sections: sections)
+  Settings(name: settingsName, sections: sections, entities: entities)
 
 proc loadSettings*(path: string): SettingsResult {.raises:[].} = 
   var error: string = ""
@@ -115,19 +115,22 @@ proc loadSettings*(path: string): SettingsResult {.raises:[].} =
 
 proc set*[T](
   settings: Settings,
-  sectionName, entity: string,
+  entity: string,
   value: T
 ): EntityResult {.exportc.} =
   ## Sets the field on the settings object (in-place) and saves settings to drive,
   ## gets the resulting value back
   EntityResult(kind: rkError, error: "Not implemented yet!")
 
-proc get*[T](
+proc get*(
   settings: Settings,
-  sectionName, entity: string
-): EntityResult {.exportc.} =
+  entity: string
+): EntityResult {.exportc, raises: [].} =
   ## Gets the value from settings object
-  EntityResult(kind: rkError, error: "Not implemented yet!")
+  try:
+    result = EntityResult(kind: rkSuccess, entity: settings.entities[entity])
+  except KeyError as e:
+    result = EntityResult(kind: rkError, error: e.msg)
 
 when isMainModule:
   from std/os import getTempDir, `/`
@@ -153,7 +156,7 @@ when isMainModule:
     of rkError:
       raise newException(Exception, s.error)
     of rkSuccess:
-      assert s.settings.name == "Test"
+      doAssert s.settings.name == "Test"
   test_load_basic_settings_from_file()
 
   proc test_load_settings_with_one_enitity_from_file(): void =
@@ -183,5 +186,10 @@ when isMainModule:
     of rkError:
       raise newException(Exception, s.error)
     of rkSuccess:
-      assert s.settings.name == "Test"
+      doAssert s.settings.name == "Test"
+
+      let entityResult = s.settings.get("Enable NiceSetting")
+      doAssert entityResult.kind == rkSuccess
+
+      doAssert entityResult.entity.kind == dkSwitch
   test_load_settings_with_one_enitity_from_file()
