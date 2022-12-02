@@ -7,10 +7,10 @@ type
     rkSuccess
     rkError
   EntityKind* = enum
-    dkChar,
-    dkSwitch,
-    dkSlider,
-    dkChoice
+    ekChar,
+    ekSwitch,
+    ekSlider,
+    ekChoice
 
   Entity* = ref EntityObj
   EntityObj = object
@@ -21,18 +21,18 @@ type
 
     case kind*: EntityKind
 
-    of dkChar:
+    of ekChar:
       charVal*: string
       minLength*, maxLength*: cushort
 
-    of dkSwitch:
+    of ekSwitch:
       boolVal*: cushort
 
-    of dkSlider:
+    of ekSlider:
       intVal*: cushort
       minValue*, maxValue*: cushort
 
-    of dkChoice:
+    of ekChoice:
       uintVal*: cuint
       choices*: seq[string]
 
@@ -159,7 +159,7 @@ when isMainModule:
       of rkSuccess:
         check(s.settings.name == "Test")
 
-    test "test load settings with one enitity from file":
+    test "test load settings, modify, save":
       let db_json = %*{
           "name": "Test",
           "sections": [
@@ -173,8 +173,8 @@ when isMainModule:
                           "helptext": "Enable this to configure app perfectly :)",
                           "separatedAbove": 0,
                           "separatedBelow": 0,
-                          "kind": "dkSwitch",
-                          "boolVal": 1
+                          "kind": "ekSwitch",
+                          "boolVal": 0
                       }
                   ]
               }
@@ -188,7 +188,19 @@ when isMainModule:
       of rkSuccess:
         check(s.settings.name == "Test")
 
-        let entityResult = s.settings.get("Enable NiceSetting")
-        check(entityResult.kind == rkSuccess)
 
-        check(entityResult.entity.kind == dkSwitch)
+        let name = "Enable NiceSetting"
+        let entityResult = s.settings.get(name)
+        check(entityResult.kind == rkSuccess)
+        check(entityResult.entity.kind == ekSwitch)
+        check(entityResult.entity.boolVal == 0)
+        let er2 = s.settings.set(name, 1)
+        check(er2.kind == rkSuccess)
+        check(er2.entity.kind == ekSwitch)
+        check(er2.entity.boolVal == 1)
+        s = loadSettings(dbPath)
+        check(s.kind == rkSuccess)
+        let er3 = s.settings.get(name)
+        check(er3.kind == rkSuccess)
+        check(er3.entity.kind == ekSwitch)
+        check(er3.entity.boolVal == 1)
