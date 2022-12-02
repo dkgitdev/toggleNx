@@ -81,7 +81,8 @@ func loadFromJson(jsonData: JsonNode): Settings =
     
     for entityData in sectionData["entities"]:
       var entity = to(entityData, Entity)
-      
+      if entities.hasKey(entity.name):
+        raise newException(ValueError, "duplicate names in entities detected: " & entity.name)
       entities[entity.name] = entity
       sEntities.add(entity)
     
@@ -194,6 +195,7 @@ proc get*(
 
 when isMainModule:
   import std/unittest
+  import strutils
   from std/os import getTempDir, `/`
 
   proc initDb(db_json: JsonNode): string = 
@@ -205,6 +207,47 @@ when isMainModule:
     dbPath
 
   suite "db tests":
+    test "test cannot load with same entities":
+      let db_json = %*{
+          "name": "Test",
+          "sections": [
+            {
+                  "name": "Test Section",
+                  "separatedAbove": false,
+                  "separatedBelow": false,
+                  "entities": [
+                      {
+                          "name": "Enable NiceSetting",
+                          "helptext": "Enable this to configure app perfectly :)",
+                          "separatedAbove": false,
+                          "separatedBelow": false,
+                          "kind": "ekSwitch",
+                          "switchVal": false
+                      }
+                  ]
+            },
+            {
+                  "name": "Test Section",
+                  "separatedAbove": false,
+                  "separatedBelow": false,
+                  "entities": [
+                      {
+                          "name": "Enable NiceSetting",
+                          "helptext": "Enable this to configure app perfectly :)",
+                          "separatedAbove": false,
+                          "separatedBelow": false,
+                          "kind": "ekSwitch",
+                          "switchVal": false
+                      }
+                  ]
+            }
+          ]
+      }
+      let dbPath = initDb(db_json)
+
+      let sr = loadSettings(dbPath)
+      check(sr.kind == rkError)
+      check(sr.error.contains("duplicate names in entities detected"))
     test "test load basic settings from file":
       let db_json = %*{
           "name": "Test",
@@ -235,6 +278,36 @@ when isMainModule:
                           "separatedBelow": false,
                           "kind": "ekSwitch",
                           "switchVal": false
+                      },
+                      # TODO: add tests for each value type!
+                      {
+                          "name": "Enable NiceSetting 2",
+                          "helptext": "Enable this to configure app perfectly :)",
+                          "separatedAbove": true,
+                          "separatedBelow": false,
+                          "kind": "ekChar",
+                          "charVal": "someDefaults",
+                          "minLength": 1,
+                          "maxLength": 32,
+                      },
+                      {
+                          "name": "Enable NiceSetting 3",
+                          "helptext": "Enable this to configure app perfectly :)",
+                          "separatedAbove": true,
+                          "separatedBelow": true,
+                          "kind": "ekChoice",
+                          "choiceVal": 0,
+                          "choices": ["Choice #0", "Another choice"]
+                      },
+                      {
+                          "name": "Enable NiceSetting 4",
+                          "helptext": "Enable this to configure app perfectly :)",
+                          "separatedAbove": false,
+                          "separatedBelow": true,
+                          "kind": "ekSlider",
+                          "sliderVal": 3,
+                          "minValue": 2,
+                          "maxValue": 5
                       }
                   ]
               }
@@ -264,3 +337,5 @@ when isMainModule:
         check(er3.kind == rkSuccess)
         check(er3.entity.kind == ekSwitch)
         check(er3.entity.switchVal == true)
+        
+        assert 1 == 0, "TODO: add tests for each value type!"
