@@ -16,30 +16,30 @@ type
   EntityObj = object
     name*: string
     helptext*: string
-    separatedAbove*: cushort
-    separatedBelow*: cushort
+    separatedAbove*: bool
+    separatedBelow*: bool
 
     case kind*: EntityKind
 
     of ekChar:
       charVal*: string
-      minLength*, maxLength*: cushort
+      minLength*, maxLength*: uint
 
     of ekSwitch:
-      boolVal*: cushort
+      switchVal*: bool
 
     of ekSlider:
-      intVal*: cushort
-      minValue*, maxValue*: cushort
+      sliderVal*: uint
+      minValue*, maxValue*: uint
 
     of ekChoice:
-      uintVal*: cuint
+      choiceVal*: uint
       choices*: seq[string]
 
   Section* = ref object 
     name: string
-    separatedAbove: cushort
-    separatedBelow: cushort
+    separatedAbove: bool
+    separatedBelow: bool
     entities: seq[Entity]
 
   Settings* = ref object
@@ -90,13 +90,28 @@ func loadFromJson(jsonData: JsonNode): Settings =
 
   Settings(name: settingsName, sections: sections, entities: entities)
 
+proc saveSettings*(settings: Settings): SettingsResult {.raises: [].} =
+  var error: string = ""
+  try:
+    let f = open(settings.path, fmWrite)
+    defer: f.close()
+    f.write(%* settings)
+    result = SettingsResult(kind: rkSuccess, settings: settings)
+  except Exception as e:
+    error = "couldn't save settings to file: " & e.msg
+  
+  if error != "":
+    result = SettingsResult(kind: rkError, error: error)
+
 proc loadSettings*(path: string): SettingsResult {.raises:[].} = 
   var error: string = ""
   try:
     let f = openFileStream(path)
     defer: f.close()
     let jData = parseJson(f)
-    result = SettingsResult(kind: rkSuccess, settings: loadFromJson(jData))
+    let s = loadFromJson(jData)
+    s.path = path
+    result = SettingsResult(kind: rkSuccess, settings: s)
 
   except JsonParsingError as e:
     error = """Couldn't parse json """" & path & """": """" & e.msg & """"."""
@@ -117,10 +132,64 @@ proc set*[T](
   settings: Settings,
   entity: string,
   value: T
-): EntityResult {.exportc.} =
+): EntityResult {.exportc, raises: [].} =
   ## Sets the field on the settings object (in-place) and saves settings to drive,
   ## gets the resulting value back
-  EntityResult(kind: rkError, error: "Not implemented yet!")
+  template typeErrorMsg(type_repr, field_type_repr, entity_name: string): string = 
+    "supplied value of type " & type_repr & " cannot be assigned to " & field_type_repr & " field " & entity_name
+
+  var error = ""
+  var result_entity: Entity
+  try:
+    result_entity = settings.entities[entity]
+  except KeyError as e:
+    error = e.msg
+  
+  case result_entity.kind
+
+  of ekSwitch:
+    error = typeErrorMsg(T.repr, "ekSwitch", entity)
+    when T is bool:
+      result_entity.switchVal = value
+      error = ""
+
+  of ekChar:
+    error = typeErrorMsg(T.repr, "ekChar", entity)
+    when T is string:
+      let l = value.len()
+      if result_entity.minLength <= l <= result_entity.maxLength:
+        result_entity.charVal = value
+        error = ""
+      else:
+        error = "supplied value for " & entity & " has invalid length of " & l & ": " & value
+
+  of ekChoice:
+    error = typeErrorMsg(T.repr, "ekChoice", entity)
+    when T is uint:
+      if result_entity.choices.low <= value <= result_entity.choices.high:
+        result_entity.choiceVal = value
+      else:
+        error = "no such choice in " & entity & ": " & value
+
+  of ekSlider:
+    error = typeErrorMsg(T.repr, "ekSlider", entity)
+    when T is uint:
+      if result_entity.minValue <= value <= result_entity.maxValue:
+        result_entity.sliderVal = value
+        error = ""
+      else:
+        error = "supplied value is not in the bounds of " & entity & ": " & value
+
+
+  # TODO: store at FS
+  if error != "":
+    result = EntityResult(kind: rkError, error: error)
+  else:
+    let sr = settings.saveSettings()
+    if sr.kind == rkError:
+      result = EntityResult(kind: rkError, error: sr.error)
+    else:
+      result = EntityResult(kind: rkSuccess, entity: result_entity)
 
 proc get*(
   settings: Settings,
@@ -165,16 +234,16 @@ when isMainModule:
           "sections": [
               {
                   "name": "Test Section",
-                  "separatedAbove": 0,
-                  "separatedBelow": 0,
+                  "separatedAbove": false,
+                  "separatedBelow": false,
                   "entities": [
                       {
                           "name": "Enable NiceSetting",
                           "helptext": "Enable this to configure app perfectly :)",
-                          "separatedAbove": 0,
-                          "separatedBelow": 0,
+                          "separatedAbove": false,
+                          "separatedBelow": false,
                           "kind": "ekSwitch",
-                          "boolVal": 0
+                          "switchVal": false
                       }
                   ]
               }
@@ -193,14 +262,14 @@ when isMainModule:
         let entityResult = s.settings.get(name)
         check(entityResult.kind == rkSuccess)
         check(entityResult.entity.kind == ekSwitch)
-        check(entityResult.entity.boolVal == 0)
-        let er2 = s.settings.set(name, 1)
+        check(entityResult.entity.switchVal == false)
+        let er2 = s.settings.set(name, true)
         check(er2.kind == rkSuccess)
         check(er2.entity.kind == ekSwitch)
-        check(er2.entity.boolVal == 1)
+        check(er2.entity.switchVal == true)
         s = loadSettings(dbPath)
         check(s.kind == rkSuccess)
         let er3 = s.settings.get(name)
         check(er3.kind == rkSuccess)
         check(er3.entity.kind == ekSwitch)
-        check(er3.entity.boolVal == 1)
+        check(er3.entity.switchVal == true)

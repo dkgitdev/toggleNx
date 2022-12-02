@@ -7,7 +7,6 @@
             "args": [
                 "compile",
                 "--debugger:native",
-                "--verbose",
                 "-o:${workspaceRoot}/bin/${fileBasenameNoExtension}",
                 "${relativeFile}"
             ],
