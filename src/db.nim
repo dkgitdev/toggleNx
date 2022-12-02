@@ -133,6 +133,7 @@ proc get*(
     result = EntityResult(kind: rkError, error: e.msg)
 
 when isMainModule:
+  import std/unittest
   from std/os import getTempDir, `/`
 
   proc initDb(db_json: JsonNode): string = 
@@ -143,7 +144,7 @@ when isMainModule:
     f.close()
     dbPath
 
-  proc test_load_basic_settings_from_file(): void =
+  test "test load basic settings from file":
     let db_json = %*{
         "name": "Test",
         "sections": []
@@ -157,9 +158,8 @@ when isMainModule:
       raise newException(Exception, s.error)
     of rkSuccess:
       doAssert s.settings.name == "Test"
-  test_load_basic_settings_from_file()
 
-  proc test_load_settings_with_one_enitity_from_file(): void =
+  test "test load settings with one enitity from file":
     let db_json = %*{
         "name": "Test",
         "sections": [
@@ -192,4 +192,3 @@ when isMainModule:
       doAssert entityResult.kind == rkSuccess
 
       doAssert entityResult.entity.kind == dkSwitch
-  test_load_settings_with_one_enitity_from_file()
