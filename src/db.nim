@@ -113,15 +113,6 @@ proc loadSettings*(path: string): SettingsResult {.raises:[].} =
     s.path = path
     result = SettingsResult(kind: rkSuccess, settings: s)
 
-  except JsonParsingError as e:
-    error = """Couldn't parse json """" & path & """": """" & e.msg & """"."""
-  
-  except ValueError as e:
-    error = """Couldn't parse json """" & path & """": """" & e.msg & """"."""
-  
-  except KeyError as e:
-    error = """Couldn't parse json """" & path & """": """" & e.msg & """"."""
-  
   except Exception as e:
     error = """Couldn't open file """" & path & """": """" & e.msg & """"."""
 
