@@ -124,7 +124,7 @@ proc set*[T](
   settings: Settings,
   entity: string,
   value: T
-): EntityResult {.exportc, raises: [].} =
+): EntityResult {.raises: [].} =
   ## Sets the field on the settings object (in-place) and saves settings to drive,
   ## gets the resulting value back
   template typeErrorMsg(type_repr, field_type_repr, entity_name: string): string = 
@@ -149,28 +149,29 @@ proc set*[T](
     error = typeErrorMsg(T.repr, "ekChar", entity)
     when T is string:
       let l = value.len()
-      if result_entity.minLength <= l <= result_entity.maxLength:
+      if result_entity.minLength <= l.uint and l.uint <= result_entity.maxLength:
         result_entity.charVal = value
         error = ""
       else:
-        error = "supplied value for " & entity & " has invalid length of " & l & ": " & value
+        error = "supplied value for " & entity & " has invalid length: " & value
 
   of ekChoice:
     error = typeErrorMsg(T.repr, "ekChoice", entity)
     when T is uint:
-      if result_entity.choices.low <= value <= result_entity.choices.high:
+      if result_entity.choices.low.uint <= value and value <= result_entity.choices.high.uint:
         result_entity.choiceVal = value
+        error = ""
       else:
-        error = "no such choice in " & entity & ": " & value
+        error = "no such choice in " & entity
 
   of ekSlider:
     error = typeErrorMsg(T.repr, "ekSlider", entity)
     when T is uint:
-      if result_entity.minValue <= value <= result_entity.maxValue:
+      if result_entity.minValue <= value and value <= result_entity.maxValue:
         result_entity.sliderVal = value
         error = ""
       else:
-        error = "supplied value is not in the bounds of " & entity & ": " & value
+        error = "supplied value is not in the bounds of " & entity
 
 
   # TODO: store at FS
@@ -186,7 +187,7 @@ proc set*[T](
 proc get*(
   settings: Settings,
   entity: string
-): EntityResult {.exportc, raises: [].} =
+): EntityResult {.raises: [].} =
   ## Gets the value from settings object
   try:
     result = EntityResult(kind: rkSuccess, entity: settings.entities[entity])
@@ -263,6 +264,10 @@ when isMainModule:
         check(s.settings.name == "Test")
 
     test "test load settings, modify, save":
+      var 
+        er: EntityResult
+        sr: SettingsResult
+        name: string
       let db_json = %*{
           "name": "Test",
           "sections": [
@@ -279,7 +284,6 @@ when isMainModule:
                           "kind": "ekSwitch",
                           "switchVal": false
                       },
-                      # TODO: add tests for each value type!
                       {
                           "name": "Enable NiceSetting 2",
                           "helptext": "Enable this to configure app perfectly :)",
@@ -287,7 +291,7 @@ when isMainModule:
                           "separatedBelow": false,
                           "kind": "ekChar",
                           "charVal": "someDefaults",
-                          "minLength": 1,
+                          "minLength": 2,
                           "maxLength": 32,
                       },
                       {
@@ -314,28 +318,107 @@ when isMainModule:
           ]
       }
       let dbPath = db_json.initDb()
-      var s = loadSettings(dbPath)
-      case s.kind
+      sr = loadSettings(dbPath)
+      case sr.kind
       of rkError:
-        raise newException(Exception, s.error)
+        raise newException(Exception, sr.error)
       of rkSuccess:
-        check(s.settings.name == "Test")
+        check(sr.settings.name == "Test")
 
+        # ekSwitch
+        name = "Enable NiceSetting"
+        er = sr.settings.get(name)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekSwitch)
+        check(er.entity.switchVal == false)
 
-        let name = "Enable NiceSetting"
-        let entityResult = s.settings.get(name)
-        check(entityResult.kind == rkSuccess)
-        check(entityResult.entity.kind == ekSwitch)
-        check(entityResult.entity.switchVal == false)
-        let er2 = s.settings.set(name, true)
-        check(er2.kind == rkSuccess)
-        check(er2.entity.kind == ekSwitch)
-        check(er2.entity.switchVal == true)
-        s = loadSettings(dbPath)
-        check(s.kind == rkSuccess)
-        let er3 = s.settings.get(name)
-        check(er3.kind == rkSuccess)
-        check(er3.entity.kind == ekSwitch)
-        check(er3.entity.switchVal == true)
+        er = sr.settings.set(name, true)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekSwitch)
+        check(er.entity.switchVal == true)
+
+        sr = loadSettings(dbPath)
+        check(sr.kind == rkSuccess)
+
+        er = sr.settings.get(name)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekSwitch)
+        check(er.entity.switchVal == true)
+
+        # ekChar
+        name = "Enable NiceSetting 2"
+        er = sr.settings.get(name)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekChar)
+        check(er.entity.charVal == "someDefaults")
+
+        er = sr.settings.set(name, "someChangedDefaults")
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekChar)
+        check(er.entity.charVal == "someChangedDefaults")
+
+        sr = loadSettings(dbPath)
+        check(sr.kind == rkSuccess)
+
+        er = sr.settings.get(name)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekChar)
+        check(er.entity.charVal == "someChangedDefaults")
+
+        er = sr.settings.set(name, "n")
+        check(er.kind == rkError)
+        check(er.error.contains("has invalid length:"))
+        er = sr.settings.set(name, "too Long String for that field, oh my, how long it is")
+        check(er.kind == rkError)
+        check(er.error.contains("has invalid length:"))
+
+        # ekChoice
+        name = "Enable NiceSetting 3"
+        er = sr.settings.get(name)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekChoice)
+        check(er.entity.choiceVal == 0)
+
+        er = sr.settings.set(name, 1.uint)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekChoice)
+        check(er.entity.choiceVal == 1)
+
+        sr = loadSettings(dbPath)
+        check(sr.kind == rkSuccess)
+
+        er = sr.settings.get(name)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekChoice)
+        check(er.entity.choiceVal == 1)
+
+        er = sr.settings.set(name, 42.uint)
+        check(er.kind == rkError)
+        check(er.error.contains("no such choice in"))
         
-        assert 1 == 0, "TODO: add tests for each value type!"
+        # ekSlider
+        name = "Enable NiceSetting 4"
+        er = sr.settings.get(name)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekSlider)
+        check(er.entity.sliderVal == 3)
+
+        er = sr.settings.set(name, 2.uint)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekSlider)
+        check(er.entity.sliderVal == 2)
+
+        sr = loadSettings(dbPath)
+        check(sr.kind == rkSuccess)
+
+        er = sr.settings.get(name)
+        check(er.kind == rkSuccess)
+        check(er.entity.kind == ekSlider)
+        check(er.entity.sliderVal == 2)
+
+        er = sr.settings.set(name, 1.uint)
+        check(er.kind == rkError)
+        check(er.error.contains("supplied value is not in the bounds of"))
+        er = sr.settings.set(name, 7.uint)
+        check(er.kind == rkError)
+        check(er.error.contains("supplied value is not in the bounds of"))
