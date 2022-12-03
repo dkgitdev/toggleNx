@@ -36,7 +36,7 @@ type
       choiceVal*: uint
       choices*: seq[string]
 
-  Section* = ref object 
+  Section* = ref object
     name: string
     separatedAbove: bool
     separatedBelow: bool
@@ -68,7 +68,7 @@ type
     of rkError:
       error*: string
 
-func loadFromJson(jsonData: JsonNode): Settings = 
+func loadFromJson(jsonData: JsonNode): Settings =
   ## Deserialize JSON into Settings
 
   let settingsName = jsonData["name"].getStr
@@ -78,14 +78,14 @@ func loadFromJson(jsonData: JsonNode): Settings =
 
   for sectionData in jsonData["sections"]:
     var sEntities: seq[Entity] = @[]
-    
+
     for entityData in sectionData["entities"]:
       var entity = to(entityData, Entity)
       if entities.hasKey(entity.name):
         raise newException(ValueError, "duplicate names in entities detected: " & entity.name)
       entities[entity.name] = entity
       sEntities.add(entity)
-    
+
     var section = Section(name: sectionData["name"].getStr, entities: sEntities)
     sections.add(section)
 
@@ -96,15 +96,15 @@ proc saveSettings*(settings: Settings): SettingsResult {.raises: [].} =
   try:
     let f = open(settings.path, fmWrite)
     defer: f.close()
-    f.write(%* settings)
+    f.write( %* settings)
     result = SettingsResult(kind: rkSuccess, settings: settings)
   except Exception as e:
     error = "couldn't save settings to file: " & e.msg
-  
+
   if error != "":
     result = SettingsResult(kind: rkError, error: error)
 
-proc loadSettings*(path: string): SettingsResult {.raises:[].} = 
+proc loadSettings*(path: string): SettingsResult {.raises: [].} =
   var error: string = ""
   try:
     let f = openFileStream(path)
@@ -127,8 +127,10 @@ proc set*[T](
 ): EntityResult {.raises: [].} =
   ## Sets the field on the settings object (in-place) and saves settings to drive,
   ## gets the resulting value back
-  template typeErrorMsg(type_repr, field_type_repr, entity_name: string): string = 
-    "supplied value of type " & type_repr & " cannot be assigned to " & field_type_repr & " field " & entity_name
+  template typeErrorMsg(type_repr, field_type_repr,
+      entity_name: string): string =
+    "supplied value of type " & type_repr & " cannot be assigned to " &
+        field_type_repr & " field " & entity_name
 
   var error = ""
   var result_entity: Entity
@@ -136,7 +138,7 @@ proc set*[T](
     result_entity = settings.entities[entity]
   except KeyError as e:
     error = e.msg
-  
+
   case result_entity.kind
 
   of ekSwitch:
@@ -149,7 +151,8 @@ proc set*[T](
     error = typeErrorMsg(T.repr, "ekChar", entity)
     when T is string:
       let l = value.len()
-      if result_entity.minLength <= l.uint and l.uint <= result_entity.maxLength:
+      if result_entity.minLength <= l.uint and l.uint <=
+          result_entity.maxLength:
         result_entity.charVal = value
         error = ""
       else:
@@ -158,7 +161,8 @@ proc set*[T](
   of ekChoice:
     error = typeErrorMsg(T.repr, "ekChoice", entity)
     when T is uint:
-      if result_entity.choices.low.uint <= value and value <= result_entity.choices.high.uint:
+      if result_entity.choices.low.uint <= value and value <=
+          result_entity.choices.high.uint:
         result_entity.choiceVal = value
         error = ""
       else:
@@ -187,7 +191,7 @@ proc set*[T](
 proc get*(
   settings: Settings,
   entity: string
-): EntityResult {.raises: [].} =
+): EntityResult {.raises: [], exportc.} =
   ## Gets the value from settings object
   try:
     result = EntityResult(kind: rkSuccess, entity: settings.entities[entity])
@@ -199,7 +203,7 @@ when isMainModule:
   import strutils
   from std/os import getTempDir, `/`
 
-  proc initDb(db_json: JsonNode): string = 
+  proc initDb(db_json: JsonNode): string =
     let td = getTempDir()
     let dbPath = td/"db.json"
     let f = open(dbPath, fmWrite)
@@ -264,7 +268,7 @@ when isMainModule:
         check(s.settings.name == "Test")
 
     test "test load settings, modify, save":
-      var 
+      var
         er: EntityResult
         sr: SettingsResult
         name: string
@@ -395,7 +399,7 @@ when isMainModule:
         er = sr.settings.set(name, 42.uint)
         check(er.kind == rkError)
         check(er.error.contains("no such choice in"))
-        
+
         # ekSlider
         name = "Enable NiceSetting 4"
         er = sr.settings.get(name)

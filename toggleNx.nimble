@@ -13,4 +13,7 @@ requires "nim >= 1.6.6"
 requires "switch_build >= 0.1.4"
 
 task test, "Runs the test suite":
-  exec "nim c -r src/db.nim"
+  exec "nim c -r --quiet src/db/db.nim"
+  exec "rm src/db/db"
+  exec "nim c -r --quiet src/db/c.nim"
+  exec "rm src/db/c"

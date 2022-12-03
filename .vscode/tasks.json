@@ -14,6 +14,26 @@
                 "cwd": "${workspaceRoot}"
             },
             "type": "shell",
+        },
+        {
+            "label": "nim: prettify current file",
+            "command": "nimpretty",
+            "args": [
+                "--indent:2",
+                "--maxLineLen:120",
+                "${relativeFile}"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
         }
     ]
 }
