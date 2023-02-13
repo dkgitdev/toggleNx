@@ -1,6 +1,6 @@
-import db/c as db
+import toggleNx/db/c as db
 export db
-import ui/c as ui
+import toggleNx/ui/c as ui
 export ui
-import deviceTest/c as deviceTest
+import toggleNx/deviceTest/c as deviceTest
 export deviceTest
