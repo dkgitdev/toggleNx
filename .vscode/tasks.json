@@ -1,0 +1,39 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "nim: build current file (for debugging)",
+            "command": "nim",
+            "args": [
+                "compile",
+                "--debugger:native",
+                "-o:${workspaceRoot}/bin/${fileBasenameNoExtension}",
+                "${relativeFile}"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "type": "shell",
+        },
+        {
+            "label": "nim: prettify current file",
+            "command": "nimpretty",
+            "args": [
+                "--indent:2",
+                "--maxLineLen:120",
+                "${relativeFile}"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        }
+    ]
+}
