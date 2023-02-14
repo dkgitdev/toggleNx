@@ -20,6 +20,7 @@ task test, "Runs the test suite":
   exec "./build/c"
   exec "nimble build_pc"
   exec "nimble build_nx"
+  exec "nimble build_device_test"
 
 task build_pc, "Build PC C library":
   exec "rm -rf build/"
